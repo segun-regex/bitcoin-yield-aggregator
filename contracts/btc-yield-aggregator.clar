@@ -54,3 +54,60 @@
 (define-constant MAX-APY u10000)
 (define-constant MIN-APY u0)
 (define-constant MAX-TOKEN-TRANSFER u1000000000000)
+
+;; State Variables
+(define-data-var total-tvl uint u0)
+(define-data-var platform-fee-rate uint u100)
+(define-data-var min-deposit uint u100000)
+(define-data-var max-deposit uint u1000000000)
+(define-data-var emergency-shutdown bool false)
+
+;; Data Maps
+(define-map user-deposits 
+    { user: principal } 
+    { amount: uint, last-deposit-block: uint })
+
+(define-map user-rewards 
+    { user: principal } 
+    { pending: uint, claimed: uint })
+
+(define-map protocols 
+    { protocol-id: uint } 
+    { name: (string-ascii 64), active: bool, apy: uint })
+
+(define-map strategy-allocations 
+    { protocol-id: uint } 
+    { allocation: uint })
+
+(define-map whitelisted-tokens 
+    { token: principal } 
+    { approved: bool })
+
+(define-map user-operations 
+    { user: principal }
+    { last-operation: uint, count: uint })
+
+;; SIP-010 Token Interface
+(define-trait sip-010-trait
+    (
+        (transfer (uint principal principal (optional (buff 34))) (response bool uint))
+        (get-balance (principal) (response uint uint))
+        (get-decimals () (response uint uint))
+        (get-name () (response (string-ascii 32) uint))
+        (get-symbol () (response (string-ascii 32) uint))
+        (get-total-supply () (response uint uint))
+    )
+)
+
+;; Authorization Functions
+(define-private (is-contract-owner)
+    (is-eq tx-sender contract-owner)
+)
+
+;; Validation Functions
+(define-private (is-valid-protocol-id (protocol-id uint))
+    (and 
+        (> protocol-id u0)
+        (<= protocol-id MAX-PROTOCOL-ID)
+    )
+)
