@@ -362,3 +362,59 @@
         (ok rewards)
     )
 )
+
+;; Protocol Optimization Functions
+(define-private (rebalance-protocols)
+    (let
+        (
+            (total-allocations (fold + (map get-protocol-allocation (get-protocol-list)) u0))
+        )
+        (asserts! (<= total-allocations u10000) ERR-INVALID-AMOUNT)
+        (ok true)
+    )
+)
+
+(define-private (get-weighted-apy)
+    (fold + (map get-weighted-protocol-apy (get-protocol-list)) u0)
+)
+
+(define-private (get-weighted-protocol-apy (protocol-id uint))
+    (let
+        (
+            (protocol (unwrap-panic (get-protocol protocol-id)))
+            (allocation (get allocation (unwrap-panic 
+                (map-get? strategy-allocations { protocol-id: protocol-id }))))
+        )
+        (if (get active protocol)
+            (/ (* (get apy protocol) allocation) u10000)
+            u0
+        )
+    )
+)
+
+;; Read-Only Functions
+(define-read-only (get-protocol (protocol-id uint))
+    (map-get? protocols { protocol-id: protocol-id })
+)
+
+(define-read-only (get-user-deposit (user principal))
+    (map-get? user-deposits { user: user })
+)
+
+(define-read-only (get-total-tvl)
+    (var-get total-tvl)
+)
+
+(define-read-only (is-whitelisted (token <sip-010-trait>))
+    (default-to false (get approved (map-get? whitelisted-tokens { token: (contract-of token) })))
+)
+
+;; Administrative Functions
+(define-public (set-platform-fee (new-fee uint))
+    (begin
+        (asserts! (is-contract-owner) ERR-NOT-AUTHORIZED)
+        (asserts! (<= new-fee u1000) ERR-INVALID-AMOUNT)
+        (var-set platform-fee-rate new-fee)
+        (ok true)
+    )
+)
